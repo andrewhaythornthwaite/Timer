@@ -502,6 +502,10 @@
   /* Three elements per clip, rotated. Each is rewound the moment it finishes,
      so firing a beep is a bare play() with no seek in front of it — seeking on
      iOS is asynchronous and was making the countdown drift audibly. */
+  /* Scheduler state — declared up here because loadTone() below runs during
+     setup and reaches for it. */
+  let ac = null, BUFFERS = {}, booked = [], precise = false;
+
   const POOL = {}, ALL = [];
   Object.keys(BASE).forEach(k=>{
     POOL[k] = [0,1,2].map(()=>{
@@ -586,7 +590,6 @@
      clock instead, so a beep booked for 3.000s lands at 3.000s. The whole
      countdown is booked in advance the moment a phase starts, rather than
      being fired off one beep at a time as the loop notices the seconds tick. */
-  let ac = null, BUFFERS = {}, booked = [], precise = false;
 
   function audioCtx(){
     if(!ac){
@@ -625,13 +628,20 @@
       const s = c.createBufferSource();
       s.buffer = BUFFERS[name];
       s.connect(c.destination);
-      s.start(c.currentTime + Math.max(0, inSec));
-      booked.push(s);
+      const when = c.currentTime + Math.max(0, inSec);
+      s.start(when);
+      booked.push({node:s, at:when});
       return true;
     }catch(e){ return false; }
   }
+  /* Only unbook things that have not started yet. The landing tone is booked
+     to sound at the exact instant the next phase begins — and the next phase
+     immediately re-books its own countdown. Stopping everything indiscriminately
+     killed that tone a few milliseconds after it started, so the countdown ran
+     three ticks and then the final beep was cut off. */
   function cancelBooked(){
-    booked.forEach(s=>{ try{ s.stop(); }catch(e){} });
+    const t = ac ? ac.currentTime : Infinity;
+    booked.forEach(b=>{ if(b.at > t + 0.02){ try{ b.node.stop(); }catch(e){} } });
     booked = [];
   }
   /* three ticks then the landing tone, all booked against the audio clock */
@@ -867,10 +877,16 @@
     if(e.code==="ArrowRight" && S.on){ e.preventDefault(); $("skip").click(); }
   });
 
-  if(window.navigator.standalone || window.matchMedia("(display-mode: standalone)").matches){
-    document.body.classList.add("standalone");
-  }
-  report(); recap(); load();
+  /* Guarded — a missing API here must never stop the rest of setup running. */
+  try{
+    if(window.navigator.standalone ||
+       (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches)){
+      document.body.classList.add("standalone");
+    }
+  }catch(e){}
+  try{ report(); }catch(e){}
+  recap();
+  try{ load(); }catch(e){}
 })();
 </script>
 </body>
