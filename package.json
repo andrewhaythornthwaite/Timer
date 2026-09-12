@@ -1,0 +1,11 @@
+{
+  "name": "circuit-timer",
+  "private": true,
+  "description": "Single-file HIIT interval timer, deployed via GitHub Pages",
+  "scripts": {
+    "test": "node test/app.js && node test/presets.js && node test/tones.js"
+  },
+  "devDependencies": {
+    "jsdom": "^26.0.0"
+  }
+}

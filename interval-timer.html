@@ -59,6 +59,38 @@
     color:var(--ink-60);font-weight:500;
   }
 
+  .presets{
+    display:flex;gap:7px;overflow-x:auto;padding:16px 0 4px;margin:0 -20px;
+    padding-left:20px;padding-right:20px;-webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .presets::-webkit-scrollbar{display:none}
+  .chip{
+    flex:none;display:flex;align-items:stretch;border:1px solid var(--ink-30);
+    border-radius:2px;overflow:hidden;background:transparent;
+  }
+  .chip.on{border-color:var(--ink);background:var(--ink)}
+  .chip.on .chip-load b,.chip.on .chip-load span,.chip.on .chip-x{color:var(--ground)}
+  .chip-load{padding:8px 10px;text-align:left;line-height:1.15}
+  .chip-load b{
+    display:block;font-family:var(--disp);font-weight:600;font-size:15px;
+    letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;
+  }
+  .chip-load span{
+    display:block;font-size:11px;color:var(--ink-60);white-space:nowrap;margin-top:1px;
+  }
+  .chip-x{
+    width:30px;font-size:17px;color:var(--ink-30);
+    border-left:1px solid var(--ink-12);
+  }
+  .chip-x:active{background:var(--ink);color:var(--ground)}
+  .chip-add{
+    padding:8px 13px;font-family:var(--disp);font-weight:600;font-size:15px;
+    letter-spacing:.08em;text-transform:uppercase;color:var(--ink-60);
+    border-style:dashed;white-space:nowrap;
+  }
+  .chip-add:active{background:var(--ink);color:var(--ground)}
+
   .rows{margin-top:4px}
   .row{
     display:flex;align-items:center;gap:14px;
@@ -68,14 +100,14 @@
   .row.is-work .swatch{background:var(--work)}
   .row.is-rest .swatch{background:var(--rest)}
   .row.is-break .swatch{background:var(--break)}
-  .row .lab{flex:1;min-width:0}
+  .row .lab{flex:1 1 auto;min-width:0}
   .row .lab b{
     display:block;font-family:var(--disp);font-weight:600;font-size:21px;
     letter-spacing:.06em;text-transform:uppercase;line-height:1.05;
   }
   .row .lab span{display:block;font-size:12.5px;color:var(--ink-60);margin-top:2px;line-height:1.3}
 
-  .stepper{display:flex;align-items:center;gap:2px;flex:none}
+  .stepper{display:flex;align-items:center;gap:2px;flex:0 0 auto;margin-left:auto}
   .stepper button{
     width:42px;height:42px;border:1px solid var(--ink-30);border-radius:50%;
     font-family:var(--disp);font-size:24px;line-height:0;display:grid;place-items:center;
@@ -83,9 +115,15 @@
   }
   .stepper button:active{background:var(--ink);color:var(--ground)}
   .stepper input{
-    width:62px;height:42px;text-align:center;border:0;background:none;
-    font-family:var(--disp);font-weight:600;font-size:28px;color:inherit;
+    width:84px;height:42px;text-align:center;border:0;background:none;
+    font-family:var(--disp);font-weight:600;font-size:27px;color:inherit;
     -moz-appearance:textfield;font-variant-numeric:tabular-nums;
+    padding:0;
+  }
+  /* four digits (900s break) still need to fit on a narrow phone */
+  @media (max-width:380px){
+    .stepper input{width:74px;font-size:24px}
+    .stepper button{width:38px;height:38px;font-size:22px}
   }
   .stepper input::-webkit-outer-spin-button,
   .stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
@@ -147,8 +185,8 @@
     font-family:var(--disp);font-weight:600;font-size:15px;letter-spacing:.14em;text-transform:uppercase;
   }
   .testbtn:active{background:var(--ink);color:var(--ground)}
-  .tones{display:flex;gap:5px;flex:none}
-  .tones .testbtn{padding:9px 11px;font-size:13px;letter-spacing:.08em}
+  .tones{display:flex;gap:6px;padding:2px 0 14px}
+  .tones .testbtn{flex:1;padding:12px 4px;font-size:14px;letter-spacing:.08em}
   .tones .testbtn[aria-pressed="true"]{background:var(--ink);color:var(--ground);border-color:var(--ink)}
   .previews{display:flex;gap:8px;margin-top:16px}
   .previews .testbtn{flex:1;padding:13px 4px;font-size:14px;letter-spacing:.1em}
@@ -207,6 +245,8 @@
     <p>Work · Rest · Reps · Exercises</p>
   </header>
 
+  <div class="presets" id="presets"></div>
+
   <div class="rows" id="rows">
     <div class="row is-work">
       <i class="swatch"></i>
@@ -250,7 +290,7 @@
 
     <div class="row is-break">
       <i class="swatch"></i>
-      <div class="lab"><b>Break</b><span>Between exercises — time to switch</span></div>
+      <div class="lab"><b>Break</b><span>Between exercises</span></div>
       <div class="stepper" data-key="brk" data-step="10" data-min="0" data-max="900">
         <button type="button" data-d="-1" aria-label="Shorter break">–</button>
         <input type="number" inputmode="numeric" id="f-brk" value="60" aria-label="Break between exercises">
@@ -260,7 +300,7 @@
 
     <div class="row">
       <i class="swatch"></i>
-      <div class="lab"><b>Lead-in</b><span>Countdown before the first rep</span></div>
+      <div class="lab"><b>Lead-in</b><span>Before the first rep</span></div>
       <div class="stepper" data-key="prep" data-step="5" data-min="0" data-max="120">
         <button type="button" data-d="-1" aria-label="Shorter lead-in">–</button>
         <input type="number" inputmode="numeric" id="f-prep" value="10" aria-label="Lead-in seconds">
@@ -270,7 +310,7 @@
 
     <div class="row">
       <i class="swatch"></i>
-      <div class="lab"><b>Sound</b><span>Three ticks at 3-2-1, then the change itself</span></div>
+      <div class="lab"><b>Sound</b><span>Three ticks, then the change</span></div>
       <button class="toggle" id="f-snd" aria-pressed="true" aria-label="Sound on"></button>
     </div>
   </div>
@@ -278,11 +318,12 @@
   <div class="row">
       <i class="swatch"></i>
       <div class="lab"><b>Tone</b><span>Character of the beeps</span></div>
-      <div class="tones">
-        <button class="testbtn" data-tone="soft" type="button">Soft</button>
-        <button class="testbtn" data-tone="warm" type="button">Warm</button>
-        <button class="testbtn" data-tone="wood" type="button">Wood</button>
-      </div>
+    </div>
+    <div class="tones">
+      <button class="testbtn" data-tone="gong" type="button">Gong</button>
+      <button class="testbtn" data-tone="soft" type="button">Soft</button>
+      <button class="testbtn" data-tone="warm" type="button">Warm</button>
+      <button class="testbtn" data-tone="wood" type="button">Wood</button>
     </div>
   <div class="previews">
     <button class="testbtn" id="hear-start" type="button">&#9205; Start</button>
@@ -353,10 +394,10 @@
       b.addEventListener("click",()=>{
         const step = +box.dataset.step * +b.dataset.d;
         inp.value = (parseInt(inp.value,10)||0) + step;
-        clampField(inp, box); recap(); save();
+        clampField(inp, box); recap(); save(); renderPresets();
       });
     });
-    inp.addEventListener("change",()=>{clampField(inp,box);recap();save();});
+    inp.addEventListener("change",()=>{clampField(inp,box);recap();save();renderPresets();});
     inp.addEventListener("blur",()=>{clampField(inp,box);recap();save();});
   });
   $("f-snd").addEventListener("click",e=>{
@@ -372,27 +413,113 @@
     ex:+F.ex.value, brk:+F.brk.value, prep:+F.prep.value
   });
 
-  async function save(){
-    try{ await window.storage.set("circuit-timer:settings", JSON.stringify({...cfg(), sound, tone: toneName})); }catch(e){}
+  /* Storage. localStorage is what works on a real web host; window.storage only
+     exists inside Claude's preview. Try both, fall back to memory so nothing
+     ever throws. */
+  const mem = {};
+  const store = {
+    get(k){
+      try{ const v = localStorage.getItem(k); if(v !== null) return v; }catch(e){}
+      return mem[k] !== undefined ? mem[k] : null;
+    },
+    set(k, v){
+      mem[k] = v;
+      try{ localStorage.setItem(k, v); return true; }catch(e){}
+      return false;
+    }
+  };
+  const K_SET = "circuit-timer:settings", K_PRE = "circuit-timer:presets";
+
+  function save(){
+    store.set(K_SET, JSON.stringify({...cfg(), sound, tone: toneName}));
   }
-  async function load(){
+  function load(){
+    const raw = store.get(K_SET); if(!raw) return;
     try{
-      const r = await window.storage.get("circuit-timer:settings");
-      if(!r) return;
-      const s = JSON.parse(r.value);
-      ["work","rest","reps","ex","brk","prep"].forEach(k=>{ if(typeof s[k]==="number") F[k].value = s[k]; });
+      const s = JSON.parse(raw);
+      ["work","rest","reps","ex","brk","prep"].forEach(k=>{
+        if(typeof s[k]==="number") F[k].value = s[k];
+      });
       if(typeof s.tone==="string" && TONES[s.tone]){
-        loadTone(s.tone);
-        document.querySelectorAll(".tones .testbtn").forEach(o=>
-          o.setAttribute("aria-pressed", String(o.dataset.tone === toneName)));
+        loadTone(s.tone); markTones();
       }
       if(typeof s.sound==="boolean"){
         sound = s.sound;
         $("f-snd").setAttribute("aria-pressed",String(sound));
-        $("mute").textContent = sound ? "♪" : "✕";
       }
       recap();
     }catch(e){}
+  }
+
+  /* ---------- presets ---------- */
+  let presets = [];
+  function readPresets(){
+    try{ const a = JSON.parse(store.get(K_PRE) || "[]"); return Array.isArray(a) ? a : []; }
+    catch(e){ return []; }
+  }
+  function writePresets(){ store.set(K_PRE, JSON.stringify(presets)); }
+
+  function applyPreset(p){
+    ["work","rest","reps","ex","brk","prep"].forEach(k=>{
+      if(typeof p.cfg[k] === "number") F[k].value = p.cfg[k];
+    });
+    if(p.tone && TONES[p.tone]){ loadTone(p.tone); markTones(); }
+    recap(); save(); renderPresets();
+  }
+
+  function currentMatches(p){
+    const c = cfg();
+    return ["work","rest","reps","ex","brk","prep"].every(k => c[k] === p.cfg[k]);
+  }
+
+  function renderPresets(){
+    const box = $("presets"); if(!box) return;
+    box.innerHTML = "";
+    presets.forEach((p, i)=>{
+      const chip = document.createElement("div");
+      chip.className = "chip" + (currentMatches(p) ? " on" : "");
+      const load = document.createElement("button");
+      load.type = "button";
+      load.className = "chip-load";
+      load.innerHTML = "<b></b><span></span>";
+      load.querySelector("b").textContent = p.name;
+      load.querySelector("span").textContent =
+        p.cfg.work + "/" + p.cfg.rest + " \u00b7 " + p.cfg.reps + "\u00d7" + p.cfg.ex;
+      load.addEventListener("click", ()=>applyPreset(p));
+      const del = document.createElement("button");
+      del.type = "button"; del.className = "chip-x"; del.textContent = "\u00d7";
+      del.setAttribute("aria-label", "Delete preset " + p.name);
+      del.addEventListener("click", (e)=>{
+        e.stopPropagation();
+        presets.splice(i,1); writePresets(); renderPresets();
+      });
+      chip.appendChild(load); chip.appendChild(del);
+      box.appendChild(chip);
+    });
+    const add = document.createElement("button");
+    add.type = "button"; add.className = "chip chip-add";
+    add.textContent = "+ Save current";
+    add.addEventListener("click", savePreset);
+    box.appendChild(add);
+  }
+
+  function savePreset(){
+    const c = cfg();
+    const suggested = c.work + "/" + c.rest;
+    let name = null;
+    try{ name = window.prompt("Name this preset", suggested); }catch(e){ name = suggested; }
+    if(name === null) return;                       // cancelled
+    name = (name || suggested).trim().slice(0, 24) || suggested;
+    const existing = presets.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
+    const entry = {name: name, cfg: c, tone: toneName};
+    if(existing >= 0) presets[existing] = entry; else presets.push(entry);
+    if(presets.length > 12) presets = presets.slice(-12);
+    writePresets(); renderPresets();
+  }
+
+  function markTones(){
+    document.querySelectorAll(".tones .testbtn").forEach(o=>
+      o.setAttribute("aria-pressed", String(o.dataset.tone === toneName)));
   }
 
   /* ---------- schedule ---------- */
@@ -443,13 +570,29 @@
     parts.forEach(p=>{
       const len = Math.floor(SR*p.d);
       const atkT = p.a || 0.05, dkR = p.dk || 0.55, harm = p.h || 0, relT = 0.14;
+      const P = p.partials;
+      let norm = 0;
+      if(P) P.forEach(q=> norm += q.a);
       for(let i=0;i<len && k<n;i++,k++){
         const t = i/SR, w = 2*Math.PI*p.f*t;
-        const atk = Math.min(1, t/atkT);                 // soft swell in
-        const dec = Math.exp(-t/(p.d*dkR));              // bell decay
+        const atk = Math.min(1, t/atkT);                 // swell in
         const rel = Math.min(1, (p.d - t)/relT);         // taper fully to zero
-        const env = atk * dec * Math.max(0, rel);
-        const s = (Math.sin(w) + harm*Math.sin(2*w)) / (1 + harm);
+        let s, env;
+        if(P){
+          /* A real bell is not a sine with harmonics — its partials sit at
+             non-whole-number ratios and the high ones die away first. That
+             decaying-toward-the-fundamental is what the ear hears as a gong. */
+          s = 0;
+          for(let j=0;j<P.length;j++){
+            const q = P[j];
+            s += q.a * Math.exp(-t/(p.d*dkR*q.dk)) * Math.sin(w*q.r);
+          }
+          s /= norm;
+          env = atk * Math.max(0, rel);
+        } else {
+          s = (Math.sin(w) + harm*Math.sin(2*w)) / (1 + harm);
+          env = atk * Math.exp(-t/(p.d*dkR)) * Math.max(0, rel);
+        }
         dv.setInt16(44+k*2, Math.max(-1,Math.min(1, s*env*p.v))*32000, true);
       }
       const gap = Math.floor(SR*(p.gap||0));
@@ -470,6 +613,16 @@
      Bright = go. Low = stop. One long low = new exercise.
      a = attack, dk = decay length, h = harmonic content, mul = pitch shift. */
   const TONES = {
+    gong : {a:0.004, dk:1.00, mul:0.75, dmul:2.4, partials:[
+      {r:0.50,  a:0.30, dk:1.9},   // hum tone, hangs the longest
+      {r:1.00,  a:1.00, dk:1.3},   // prime
+      {r:1.004, a:0.45, dk:1.3},   // detuned twin — gives the slow shimmer
+      {r:1.19,  a:0.48, dk:0.80},  // tierce, the minor third in every bell
+      {r:1.51,  a:0.28, dk:0.60},  // quint
+      {r:2.00,  a:0.32, dk:0.42},  // nominal
+      {r:2.67,  a:0.13, dk:0.26},  // strike partials, gone almost at once
+      {r:3.45,  a:0.08, dk:0.18}
+    ]},
     soft : {a:0.055, dk:0.60, h:0.00, mul:1.00},
     warm : {a:0.080, dk:0.75, h:0.09, mul:0.84},
     wood : {a:0.005, dk:0.22, h:0.26, mul:1.00}
@@ -482,16 +635,21 @@
     done : [{f:294, d:0.48, v:0.82, gap:0.02}, {f:247, d:0.48, v:0.82, gap:0.02},
             {f:196, d:1.40, v:0.88}]
   };
-  let toneName = "soft";
+  let toneName = "gong";
   function clipsFor(name){
     const t = TONES[name] || TONES.soft, out = {};
     Object.keys(BASE).forEach(k=>{
       out[k] = BASE[k].map(s=>{
         const f = s.f*t.mul, low = f < 320;
+        // a gong needs room to ring, but ticks must still clear the next second
+        let d = s.d * (t.dmul || 1);
+        if(k === "tick") d = Math.min(d, 0.92);   // must clear the next second
+        else d = Math.min(d, 5.0);                // and never run into a short break
         return {
-          f: f, d: s.d, gap: s.gap, a: t.a, dk: s.dkOverride || t.dk,
-          h: Math.min(0.55, t.h + (low ? 0.22 : 0)),
-          v: Math.min(0.95, s.v * (low ? 1.10 : 1))
+          f: f, d: d, gap: s.gap, a: t.a, dk: s.dkOverride || t.dk,
+          h: Math.min(0.55, (t.h || 0) + (low ? 0.22 : 0)),
+          v: Math.min(0.95, s.v * (low ? 1.10 : 1)),
+          partials: t.partials
         };
       });
     });
@@ -654,6 +812,31 @@
   }
   const LANDING = {work:"work", rest:"rest", break:"brk"};
 
+  /* Re-aim the audio after anything that can move it: plugging in Bluetooth,
+     coming back to the app, waking the screen. iOS does not re-route an
+     AudioContext that was opened while the phone was on its own speaker, and
+     it suspends the context in the background — either leaves you with a timer
+     that looks fine and makes no sound. */
+  function rearmAudio(){
+    const c = audioCtx();
+    if(!c) return;
+    const finish = ()=>{
+      if(!S.on || S.paused) return;
+      const p = S.seq[S.i], nx = S.seq[S.i+1];
+      if(!p) return;
+      bookCountdown((S.endAt - performance.now())/1000, nx ? LANDING[nx.t] : "done");
+    };
+    if(c.state === "suspended"){
+      const r = c.resume();
+      if(r && r.then) r.then(finish, ()=>{}); else finish();
+    } else finish();
+  }
+  try{
+    if(navigator.mediaDevices && navigator.mediaDevices.addEventListener){
+      navigator.mediaDevices.addEventListener("devicechange", rearmAudio);
+    }
+  }catch(e){}
+
   const buzz = p => { try{ if(navigator.vibrate) navigator.vibrate(p); }catch(e){} };
   function flash(){
     const f = $("flash"); if(!f) return;
@@ -701,9 +884,9 @@
     }
   }
   document.addEventListener("visibilitychange",()=>{
-    if(document.visibilityState==="visible" && S.on) keepAwake(true);
+    if(document.visibilityState==="visible" && S.on){ keepAwake(true); rearmAudio(); }
   });
-  window.addEventListener("focus",()=>{ if(S.on) keepAwake(true); });
+  window.addEventListener("focus",()=>{ if(S.on){ keepAwake(true); rearmAudio(); } });
 
   /* ---------- runtime ---------- */
   const S = {seq:[],i:0,left:0,endAt:0,on:false,paused:false,lastTick:-1,startedAt:0,pauseAt:0,pausedTotal:0};
@@ -831,11 +1014,9 @@
     }, 4400);
   }
   document.querySelectorAll(".tones .testbtn").forEach(b=>{
-    b.setAttribute("aria-pressed", String(b.dataset.tone === toneName));
     b.addEventListener("click", ()=>{
       loadTone(b.dataset.tone);
-      document.querySelectorAll(".tones .testbtn").forEach(o=>
-        o.setAttribute("aria-pressed", String(o.dataset.tone === toneName)));
+      markTones();
       const was = sound; sound = true;
       setTimeout(()=>{ if(precise) book("work", 0); else play("work"); }, 120);
       setTimeout(()=>{ sound = was; save(); }, 1400);
@@ -856,7 +1037,7 @@
       const gap = performance.now()-S.pauseAt;
       S.endAt += gap; S.pausedTotal += gap; keepAwake(true);
       const p2 = S.seq[S.i], nx = S.seq[S.i+1];
-      bookCountdown((S.endAt - performance.now())/1000, nx ? LANDING[nx.t] : "done");
+      rearmAudio();
       S.lastTick = -1;
     }
     $("pause").textContent = S.paused ? "Resume" : "Pause";
@@ -885,8 +1066,15 @@
     }
   }catch(e){}
   try{ report(); }catch(e){}
-  recap();
   try{ load(); }catch(e){}
+  markTones();
+  presets = readPresets();
+  if(!presets.length){
+    presets = [{name:"20/40", cfg:{work:20,rest:40,reps:5,ex:3,brk:60,prep:10}, tone:"soft"}];
+    writePresets();
+  }
+  renderPresets();
+  recap();
 })();
 </script>
 </body>
