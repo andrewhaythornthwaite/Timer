@@ -61,5 +61,12 @@ for(const tone of Object.keys(TONES)){
 }
 setLimits({});
 
+/* Warm and Wood were retired. Settings and presets on Andrew's phone may still
+   name them, so an unknown tone has to fall back to soft rather than break. */
+const retired = JSON.stringify(clipsFor("wood")) === JSON.stringify(clipsFor("soft"));
+if(!retired) fails++;
+console.log("\nretired tone names\n  " + (retired ? "ok   " : "FAIL ") +
+  "an unknown tone falls back to soft");
+
 console.log(fails ? "\n" + fails + " FAILED" : "\nall passed");
 process.exit(fails ? 1 : 0);

@@ -184,12 +184,16 @@ mode precisely so this is distinguishable.
 WAVs are generated in-page by `renderWav(parts)` and handed over as data URIs.
 Two synthesis modes:
 
-- **Harmonic** (`soft`, `warm`, `wood`): sine plus a little 2nd harmonic,
-  attack / exponential-decay / release envelope.
+- **Harmonic** (`soft`): sine plus a little 2nd harmonic, attack /
+  exponential-decay / release envelope.
 - **Bell partials** (`gong`): eight partials at non-integer frequency ratios,
   each with its own decay rate, high ones dying first. Includes a partial
   detuned 0.4% against the prime for shimmer. This is what makes it read as a
   bell rather than a pitched sine.
+
+`Warm` and `Wood` were retired on 25 Sep 2026 — Andrew only uses Gong and Soft.
+An unknown tone name falls back to soft, so older settings and presets that
+still name them keep working; `test/tones.js` holds that.
 
 `TONES` holds timbre params (attack, decay, harmonic content, pitch multiplier,
 duration multiplier, partial table). `BASE` holds per-clip pitch/duration/level.

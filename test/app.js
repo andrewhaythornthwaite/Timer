@@ -38,7 +38,8 @@ setTimeout(() => {
   ok("total time computed", /m|s/.test(d.getElementById("total").textContent),
      d.getElementById("total").textContent);
   ok("three preview buttons", d.querySelectorAll(".previews .testbtn").length === 3);
-  ok("four tone buttons", d.querySelectorAll(".tones .testbtn").length === 4);
+  ok("two tone buttons", d.querySelectorAll(".tones .testbtn").length === 2,
+     [...d.querySelectorAll(".tones .testbtn")].map(b=>b.dataset.tone).join(","));
   ok("no external requests", (html.match(/https:\/\//g) || []).length === 0);
 
   console.log("session");

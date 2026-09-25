@@ -68,7 +68,7 @@ setTimeout(() => {
    boot must read them as circuit ones, not drop them. */
 function migration(){
   const old = [{name:"Old one", cfg:{work:30,rest:30,reps:4,ex:2,brk:45,prep:5}, tone:"soft"}];
-  const flat = {work:45,rest:15,reps:6,ex:2,brk:30,prep:5,sound:true,tone:"warm"};
+  const flat = {work:45,rest:15,reps:6,ex:2,brk:30,prep:5,sound:true,tone:"soft"};
   const d2dom = new JSDOM(html, {
     runScripts: "dangerously", pretendToBeVisual: true, url: "https://test.local/",
     beforeParse(w){
@@ -89,7 +89,7 @@ function migration(){
        q.getElementById("f-work").value === "45" && q.getElementById("f-brk").value === "30",
        q.getElementById("f-work").value + "/" + q.getElementById("f-brk").value);
     ok("saved tone kept",
-       q.querySelector('.tones .testbtn[data-tone="warm"]').getAttribute("aria-pressed") === "true");
+       q.querySelector('.tones .testbtn[data-tone="soft"]').getAttribute("aria-pressed") === "true");
     ok("still in circuit mode",
        q.querySelector('#modes .testbtn[data-mode="circuit"]').getAttribute("aria-pressed") === "true");
     ok("old preset now tagged circuit",
