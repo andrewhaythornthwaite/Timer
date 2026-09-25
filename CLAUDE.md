@@ -217,6 +217,14 @@ other clips ≤5s so a long tone doesn't run past a short break.
 
 ## Sound design
 
+Each mode has its own sound policy, in `MODES[…].cue`: whether the 3-2-1 ticks
+are booked, which tone lands where, and whether the session ends on a fanfare.
+`cue.end(phase, next)` is the single answer to "what sounds as this phase
+finishes", and both the precise and the fallback paths read it, so the two
+cannot drift.
+
+### Circuit mode
+
 Three ticks at 3-2-1, then the landing tone on the change itself — four evenly
 spaced beats. Landing tone is pitched by what is *starting*:
 
@@ -228,8 +236,36 @@ spaced beats. Landing tone is pitched by what is *starting*:
 | New exercise | `brk` | one long low tone |
 | Session ends | `done` | descending |
 
-In Hold mode the same clips read as squeeze / release / set rest — `work` on
-each hold, `rest` on each release, `brk` at the start of a set rest.
+### Hold mode — one sound, nothing else
+
+**One tone, at the end of every hold.** That is the release cue and the only
+sound in the mode: no ticks, no tone as a hold starts, nothing on the reset,
+nothing entering or leaving a set rest, and no end-of-session fanfare — the
+last hold's release tone is the end. It uses the `rest` clip, the low "stop"
+tone.
+
+This replaced the circuit sound scheme on 25 Sep 2026 because it was unusable
+here: a 6-second hold with a 1-second reset meant a 3-2-1 countdown into every
+hold plus tones at both ends, which read as constant beeping rather than as
+information. **Do not add sounds back to this mode without asking.** Andrew's
+words: "all the sounds are super confusing — one simple sound."
+
+Two consequences worth knowing:
+
+- The first hold after the lead-in begins **silently**. Adding a start cue for
+  the first hold only is a one-line change to `cue.start` if it turns out to be
+  wanted.
+- Haptics and the screen flash still fire at *every* phase change in both
+  modes. They are silent, so they cost nothing and they carry the reset.
+
+The preview row collapses to a single button in Hold mode, playing that one
+tone. A `previews` entry of `null` hides its button.
+
+`test/app.js` instruments `HTMLMediaElement.play` and asserts a whole hold
+session sounds exactly one distinct clip, 45 times — once per hold — and that
+it is the clip the preview plays. Filter out muted plays (`unlockAudio()` primes
+every clip muted) and the keep-awake video, which is an `HTMLMediaElement` too
+and cost an hour of confusion once already.
 
 ## Visual design
 

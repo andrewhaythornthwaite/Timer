@@ -409,6 +409,11 @@
         prep:{b:"Lead-in",   s:"Before the first rep",    step:5,  min:0, max:120, aria:"Lead-in seconds"}
       },
       previews:{"hear-start":"Start", "hear-stop":"Stop", "hear-switch":"Switch"},
+      /* Three ticks into every change, then a tone pitched by what is starting. */
+      cue:{ticks:true, audition:"work",
+           start:p => LANDING[p.t],
+           end:(p,nx) => nx ? LANDING[nx.t] : "done",
+           finish:true},
       def:{work:20, rest:40, reps:5, ex:3, brk:60, prep:10},
       seed:{name:"20/40", cfg:{work:20,rest:40,reps:5,ex:3,brk:60,prep:10}, tone:"soft"},
       label:{prep:"Get ready", work:"Work", rest:"Rest", break:"Break"},
@@ -424,7 +429,7 @@
     },
     hold: {
       h1:"Hold<br>Timer", sub:"Hold · Reps · Sets",
-      snd:"Three ticks, then each hold",
+      snd:"One tone as each hold ends",
       rows:{
         work:{b:"Hold",    s:"Seconds per hold",  step:1,  min:1, max:300, aria:"Hold seconds", cls:"is-work"},
         rest:{b:"Reset",   s:"Between each hold", step:1,  min:0, max:60,  aria:"Reset seconds", cls:"is-rest"},
@@ -433,7 +438,14 @@
         brk: {b:"Rest",    s:"Between sets",      step:10, min:0, max:900, aria:"Rest between sets", cls:"is-rest"},
         prep:{b:"Lead-in", s:"Before the first hold", step:5, min:0, max:120, aria:"Lead-in seconds"}
       },
-      previews:{"hear-start":"Hold", "hear-stop":"Set end", "hear-switch":"Rest"},
+      previews:{"hear-start":null, "hear-stop":"Release tone", "hear-switch":null},
+      /* One sound and only one: the release at the end of every hold. Holds
+         are short and come thick and fast — a 3-2-1 countdown into each one,
+         plus a tone at both ends, was unreadable. Silence carries the work. */
+      cue:{ticks:false, audition:"rest",
+           start:() => null,
+           end:p => p.t === "work" ? "rest" : null,
+           finish:false},
       def:{work:6, rest:1, reps:15, ex:3, brk:90, prep:10},
       seed:{name:"Iso curls", cfg:{work:6,rest:1,reps:15,ex:3,brk:90,prep:10}, tone:"gong"},
       label:{prep:"Get ready", work:"Hold", rest:"Rest", break:"Rest"},
@@ -476,7 +488,10 @@
       if(r.cls) row.classList.add(r.cls);
     });
     Object.keys(m.previews).forEach(id=>{
-      const b = $(id); if(b) b.textContent = "\u23F5 " + m.previews[id];
+      const b = $(id); if(!b) return;
+      const lab = m.previews[id];                 // null = no such sound here
+      b.style.display = lab ? "" : "none";
+      if(lab) b.textContent = "\u23F5 " + lab;
     });
     document.querySelectorAll("#modes .testbtn").forEach(b=>
       b.setAttribute("aria-pressed", String(b.dataset.mode === modeName)));
@@ -944,7 +959,7 @@
   function bookCountdown(remainSec, landing){
     cancelBooked();
     if(!precise) return false;
-    [3,2,1].forEach(n=>{ if(remainSec > n + 0.05) book("tick", remainSec - n); });
+    if(M().cue.ticks) [3,2,1].forEach(n=>{ if(remainSec > n + 0.05) book("tick", remainSec - n); });
     if(landing) book(landing, remainSec);
     return true;
   }
@@ -962,7 +977,7 @@
       if(!S.on || S.paused) return;
       const p = S.seq[S.i], nx = S.seq[S.i+1];
       if(!p) return;
-      bookCountdown((S.endAt - performance.now())/1000, nx ? LANDING[nx.t] : "done");
+      bookCountdown((S.endAt - performance.now())/1000, M().cue.end(p, nx));
     };
     if(c.state === "suspended"){
       const r = c.resume();
@@ -984,12 +999,16 @@
   /* Visual and haptic feedback always fires from the loop. The sound comes
      from the booked schedule above, unless precise mode is unavailable, in
      which case we fall back to firing elements the old way. */
+  /* Haptics and flashes fire at every phase change in both modes — they are
+     silent, and useful. Which of them also makes a sound is the mode's call,
+     handled where the schedule is booked, so the fallback path cannot drift
+     from the precise one. */
   const cue = {
-    tick : ()=>{ buzz(35);              if(!precise) play("tick"); },
-    work : ()=>{ buzz([80,60,80]); flash(); if(!precise) play("work"); },
-    rest : ()=>{ buzz(150); flash();    if(!precise) play("rest"); },
-    brk  : ()=>{ buzz([110,80,110]); flash(); if(!precise) play("brk"); },
-    done : ()=>{ buzz([160,90,160,90,320]); flash(); if(!precise) play("done"); }
+    tick : ()=>{ buzz(35);                   if(!precise && M().cue.ticks) play("tick"); },
+    work : ()=>{ buzz([80,60,80]); flash(); },
+    rest : ()=>{ buzz(150); flash(); },
+    brk  : ()=>{ buzz([110,80,110]); flash(); },
+    done : ()=>{ buzz([160,90,160,90,320]); flash(); }
   };
 
   /* ---------- keep the screen awake ----------
@@ -1057,11 +1076,18 @@
     if(p.t==="work") cue.work(); else if(p.t==="rest") cue.rest(); else if(p.t==="break") cue.brk();
 
     // the very first phase has no preceding countdown to have booked its tone
-    if(i === 0 && precise && p.t !== "prep") book(LANDING[p.t], 0);
+    if(i === 0 && precise && p.t !== "prep"){
+      const t0 = M().cue.start(p); if(t0) book(t0, 0);
+    }
 
     // book this phase's countdown AND the tone that lands on its end
     const nx = S.seq[i+1];
-    bookCountdown(p.d, nx ? LANDING[nx.t] : "done");
+    bookCountdown(p.d, M().cue.end(p, nx));
+
+    /* Without Web Audio there is nothing booked, so the tone the previous
+       phase's end called for has to be fired here instead. */
+    const prev = S.seq[i-1];
+    if(!precise && prev){ const tp = M().cue.end(prev, p); if(tp) play(tp); }
 
     paint();
     tickDraw();
@@ -1077,8 +1103,13 @@
   }
 
   function finish(){
+    const last = S.seq[S.i];
     cancelBooked();
-    if(precise) book("done", 0);
+    if(M().cue.finish){
+      if(precise) book("done", 0); else play("done");
+    } else if(!precise && last){
+      const t = M().cue.end(last, null); if(t) play(t);   // already booked if precise
+    }
     cue.done();
     S.on = false; keepAwake(false);
     run.className = "on";
@@ -1139,22 +1170,28 @@
     previewing = true;
     const was = sound; sound = true;
     btn.classList.add("playing");
+    const ticks = M().cue.ticks;
     if(precise){
-      bookCountdown(3, landing);
-    } else {
+      if(ticks) bookCountdown(3, landing); else book(landing, 0);
+    } else if(ticks){
       [0, 1000, 2000].forEach(ms => setTimeout(()=>play("tick"), ms));
       setTimeout(()=>play(landing), 3000);
+    } else {
+      play(landing);
     }
     setTimeout(()=>{
       sound = was; previewing = false; btn.classList.remove("playing"); report();
-    }, 4400);
+    }, ticks ? 4400 : 2200);
   }
   document.querySelectorAll(".tones .testbtn").forEach(b=>{
     b.addEventListener("click", ()=>{
       loadTone(b.dataset.tone);
       markTones();
       const was = sound; sound = true;
-      setTimeout(()=>{ if(precise) book("work", 0); else play("work"); }, 120);
+      setTimeout(()=>{
+        const a = M().cue.audition;
+        if(precise) book(a, 0); else play(a);
+      }, 120);
       setTimeout(()=>{ sound = was; save(); }, 1400);
     });
   });
