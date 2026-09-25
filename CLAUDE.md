@@ -2,7 +2,8 @@
 
 A single-file interval timer web app, used by Andrew on an iPhone as a
 home-screen web app. It runs two kinds of session — **Circuit** (work / rest /
-reps / exercises) and **Hold** (isometric holds: hold / reset / reps / sets).
+reps / exercises) and **Hold** (a timed effort repeated: hold / reset / reps /
+sets).
 Everything lives in `interval-timer.html` — markup, styles, script, fonts,
 audio, icon. No build step, no dependencies, no external requests.
 
@@ -32,6 +33,13 @@ native/               ContentView.swift — SwiftUI version, not deployed
 ```
 
 ## Two modes, one engine
+
+**What Hold mode is actually for.** Andrew uses it for eccentric pronated
+(knuckles-up) bicep curls — a slow controlled lower, released, repeated. The
+original brief described isometric holds; the timing shape is identical either
+way, which is why the mode is worded neutrally as a counted effort rather than
+as a static hold. The `work` phase is however long the effort lasts, whether
+that is held still or lowered under control.
 
 Hold mode was originally a forked second file (`hold-timer.html`). It was merged
 back in on 25 Sep 2026 because two copies of the same engine drift — any audio,
