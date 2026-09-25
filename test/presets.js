@@ -43,6 +43,23 @@ setTimeout(() => {
   click(d.querySelectorAll(".chip-x")[before-1]);
   ok("delete removes one", names().length === before-1, names().join(","));
 
+  console.log("saving over a preset");
+  W.confirm = () => true;
+  const addBtn = () => d.querySelector(".chip-add");
+  click(d.querySelectorAll(".chip-load")[0]);            // load 20/40
+  ok("offers a plain save while nothing has changed",
+     addBtn().textContent === "+ Save current", addBtn().textContent);
+  set("f-work", 25);
+  ok("offers to save over the loaded preset",
+     addBtn().textContent === "↻ Save over 20/40", addBtn().textContent);
+  W.prompt = (msg, def) => def;                          // accept the offered name
+  const was = names().length;
+  click(addBtn());
+  ok("saving over adds no chip", names().length === was, names().join(","));
+  ok("the preset holds the new numbers",
+     (W.localStorage.getItem("circuit-timer:presets")||"").includes('"work":25'));
+  ok("and it is the one highlighted", !!d.querySelector(".chip.on"));
+
   console.log("per-mode lists");
   const modeBtn = m => d.querySelector('#modes .testbtn[data-mode="'+m+'"]');
   click(modeBtn("hold"));

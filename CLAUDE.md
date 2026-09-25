@@ -81,6 +81,17 @@ evict the hold ones. **Andrew has presets saved on his phone — never restructu
 this without a migration path.** `test/presets.js` boots a second DOM with
 old-shape data to prove it still loads.
 
+### Saving over a preset
+
+Load a preset and change the numbers and the `+ Save current` chip becomes
+`↻ Save over <name>`, tracked in `lastLoaded`. The name prompt is prefilled
+with that name, so accepting it updates the preset in place rather than leaving
+a near-duplicate; typing a different name makes a new one. Landing on some
+*other* existing preset's name asks for confirmation first, since that is a slip
+rather than an intent — but saving over the preset you just loaded does not,
+because that is the whole point of the button. `confirmOK()` treats a missing
+`window.confirm` as yes.
+
 ## Why it is one file with nothing external
 
 It is installed to the iOS home screen and used mid-workout, sometimes with no
@@ -238,23 +249,28 @@ spaced beats. Landing tone is pitched by what is *starting*:
 
 ### Hold mode — one sound, nothing else
 
-**One tone, at the end of every hold.** That is the release cue and the only
-sound in the mode: no ticks, no tone as a hold starts, nothing on the reset,
-nothing entering or leaving a set rest, and no end-of-session fanfare — the
-last hold's release tone is the end. It uses the `rest` clip, the low "stop"
-tone.
+**One tone, as each hold starts.** That is the squeeze cue and the only sound in
+the mode: no ticks, nothing at the end of a hold, nothing on the reset, nothing
+entering or leaving a set rest, and no end-of-session fanfare. It uses the
+`work` clip, the bright "go" tone.
 
-This replaced the circuit sound scheme on 25 Sep 2026 because it was unusable
-here: a 6-second hold with a 1-second reset meant a 3-2-1 countdown into every
-hold plus tones at both ends, which read as constant beeping rather than as
-information. **Do not add sounds back to this mode without asking.** Andrew's
-words: "all the sounds are super confusing — one simple sound."
+This replaced the circuit sound scheme on 25 Sep 2026 because that scheme was
+unusable here: a 6-second hold with a 1-second reset meant a 3-2-1 countdown
+into every hold plus tones at both ends, which read as constant beeping rather
+than as information. **Do not add sounds back to this mode without asking.**
+Andrew's words: "all the sounds are super confusing — one simple sound." The
+tone was tried at the *end* of each hold first, the same day; he preferred it on
+the start, so the release is silent.
+
+Mechanically the tone is booked as the phase *before* a hold ends — the same
+instant the hold begins — which is why `cue.end` reads the **next** phase in
+hold mode and the current one in circuit mode. With the reset at 0 that
+preceding phase is the previous hold, and it still lands correctly.
 
 Two consequences worth knowing:
 
-- The first hold after the lead-in begins **silently**. Adding a start cue for
-  the first hold only is a one-line change to `cue.start` if it turns out to be
-  wanted.
+- **The session ends silently.** The last hold is announced, nothing marks the
+  finish. Setting `cue.finish` true would give it the `done` tone.
 - Haptics and the screen flash still fire at *every* phase change in both
   modes. They are silent, so they cost nothing and they carry the reset.
 
@@ -265,7 +281,7 @@ tone. A `previews` entry of `null` hides its button.
 session sounds exactly one distinct clip, 45 times — once per hold — and that
 it is the clip the preview plays. Filter out muted plays (`unlockAudio()` primes
 every clip muted) and the keep-awake video, which is an `HTMLMediaElement` too
-and cost an hour of confusion once already.
+and briefly looked like a bug in the sound policy.
 
 ## Visual design
 

@@ -429,7 +429,7 @@
     },
     hold: {
       h1:"Hold<br>Timer", sub:"Hold · Reps · Sets",
-      snd:"One tone as each hold ends",
+      snd:"One tone as each hold starts",
       rows:{
         work:{b:"Hold",    s:"Seconds per hold",  step:1,  min:1, max:300, aria:"Hold seconds", cls:"is-work"},
         rest:{b:"Reset",   s:"Between each hold", step:1,  min:0, max:60,  aria:"Reset seconds", cls:"is-rest"},
@@ -438,13 +438,16 @@
         brk: {b:"Rest",    s:"Between sets",      step:10, min:0, max:900, aria:"Rest between sets", cls:"is-rest"},
         prep:{b:"Lead-in", s:"Before the first hold", step:5, min:0, max:120, aria:"Lead-in seconds"}
       },
-      previews:{"hear-start":null, "hear-stop":"Release tone", "hear-switch":null},
-      /* One sound and only one: the release at the end of every hold. Holds
-         are short and come thick and fast — a 3-2-1 countdown into each one,
-         plus a tone at both ends, was unreadable. Silence carries the work. */
-      cue:{ticks:false, audition:"rest",
-           start:() => null,
-           end:p => p.t === "work" ? "rest" : null,
+      previews:{"hear-start":"Hold tone", "hear-stop":null, "hear-switch":null},
+      /* One sound and only one: a tone as each hold begins. Holds are short and
+         come thick and fast — a 3-2-1 countdown into each one, plus a tone at
+         both ends, was unreadable. Silence carries the rest of it.
+         The tone is booked as the PRECEDING phase ends, which is the same
+         instant the hold starts; with no reset at all that is the end of the
+         hold before. */
+      cue:{ticks:false, audition:"work",
+           start:p => p.t === "work" ? "work" : null,
+           end:(p,nx) => nx && nx.t === "work" ? "work" : null,
            finish:false},
       def:{work:6, rest:1, reps:15, ex:3, brk:90, prep:10},
       seed:{name:"Iso curls", cfg:{work:6,rest:1,reps:15,ex:3,brk:90,prep:10}, tone:"gong"},
@@ -576,7 +579,7 @@
   }
 
   /* ---------- presets ---------- */
-  let presets = [];
+  let presets = [], lastLoaded = null;
   /* Presets are tagged with the mode they belong to. Andrew has presets saved
      from before Hold mode existed — untagged ones are circuit presets. */
   function readPresets(){
@@ -595,6 +598,7 @@
       if(typeof p.cfg[k] === "number") F[k].value = p.cfg[k];
     });
     if(p.tone && TONES[p.tone]){ loadTone(p.tone); markTones(); }
+    lastLoaded = p.name;
     recap(); save(); renderPresets(); refreshClips();
   }
 
@@ -627,24 +631,44 @@
       chip.appendChild(load); chip.appendChild(del);
       box.appendChild(chip);
     });
+    /* Once a preset has been loaded and the numbers changed, the button offers
+       to save over that preset instead of quietly making a near-duplicate. */
+    const loaded = presets.find(p => p.mode === modeName && p.name === lastLoaded);
+    if(!loaded) lastLoaded = null;
     const add = document.createElement("button");
     add.type = "button"; add.className = "chip chip-add";
-    add.textContent = "+ Save current";
+    add.textContent = (loaded && !currentMatches(loaded))
+      ? "\u21bb Save over " + loaded.name
+      : "+ Save current";
     add.addEventListener("click", savePreset);
     box.appendChild(add);
   }
 
+  /* window.confirm is missing in some embedded webviews. If it cannot ask, the
+     tap that got here is the answer. */
+  function confirmOK(q){
+    try{ const r = window.confirm(q); return r === undefined ? true : r; }
+    catch(e){ return true; }
+  }
   function savePreset(){
     const c = cfg();
-    const suggested = M().sug(c);
+    const loaded = presets.find(p => p.mode === modeName && p.name === lastLoaded);
+    const suggested = loaded ? loaded.name : M().sug(c);
     let name = null;
-    try{ name = window.prompt("Name this preset", suggested); }catch(e){ name = suggested; }
+    try{ name = window.prompt("Name it \u2014 keep the name to save over it", suggested); }
+    catch(e){ name = suggested; }
     if(name === null) return;                       // cancelled
     name = (name || suggested).trim().slice(0, 24) || suggested;
     const entry = {name: name, cfg: c, tone: toneName, mode: modeName};
     const existing = presets.findIndex(p =>
       p.mode === modeName && p.name.toLowerCase() === name.toLowerCase());
+    /* Saving over the preset you just loaded is the point, so it needs no
+       second dialog. Landing on some *other* preset's name is a slip. */
+    const deliberate = loaded && name.toLowerCase() === loaded.name.toLowerCase();
+    if(existing >= 0 && !deliberate &&
+       !confirmOK("Save over \u201c" + presets[existing].name + "\u201d?")) return;
     if(existing >= 0) presets[existing] = entry; else presets.push(entry);
+    lastLoaded = name;
     /* Cap per mode, so a full circuit list cannot evict the hold presets. */
     const mine = presets.filter(p => p.mode === modeName);
     if(mine.length > 12) presets.splice(presets.indexOf(mine[0]), 1);

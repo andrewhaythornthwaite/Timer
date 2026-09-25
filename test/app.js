@@ -9,7 +9,7 @@ const errs = [];
 /* Every play() the page makes. Two things have to be filtered out before what
    is left is "sounds Andrew hears": unlockAudio() primes every clip muted, and
    the keep-awake video is an HTMLMediaElement too. What remains proves the
-   hold-mode "one tone, at hold ends only" rule rather than assuming it. */
+   hold-mode "one tone, as each hold starts" rule rather than assuming it. */
 const plays = [];
 
 const dom = new JSDOM(html, {
@@ -81,17 +81,17 @@ setTimeout(() => {
        d.querySelector('.stepper[data-key="rest"]').dataset.max === "60");
     ok("total is 8m 22s", txt("total") === "8m 22s", txt("total"));
     ok("summary shows time under tension", /under tension/.test(txt("seq")), txt("seq"));
-    ok("one preview button, the release tone",
-       visiblePreviews().map(b => b.textContent).join("|") === "⏵ Release tone",
+    ok("one preview button, the hold tone",
+       visiblePreviews().map(b => b.textContent).join("|") === "⏵ Hold tone",
        [...d.querySelectorAll(".previews .testbtn")]
          .map(b => (b.style.display === "none" ? "[hidden]" : b.textContent)).join("|"));
     ok("sound row explains the single tone",
-       txt("snd-sub") === "One tone as each hold ends", txt("snd-sub"));
+       txt("snd-sub") === "One tone as each hold starts", txt("snd-sub"));
 
-    // What actually sounds. The preview plays the release tone; the session
-    // that follows must play that same clip and nothing else.
+    // What actually sounds. The preview plays the hold tone; the session that
+    // follows must play that same clip, once per hold start, and nothing else.
     plays.length = 0;
-    click("hear-stop");
+    click("hear-start");
     click("start");
     const tally = {prep:0, work:0, rest:0, break:0};
     let guard = 0;
@@ -112,8 +112,8 @@ setTimeout(() => {
       const uniq = [...new Set(heard())];
       ok("only one clip sounds in a hold session", uniq.length === 1,
          uniq.length + " distinct clips");
-      ok("and it is the release tone the preview plays", uniq[0] === heard()[0]);
-      ok("it sounds once per hold, plus the preview", heard().length === 46,
+      ok("and it is the hold tone the preview plays", uniq[0] === heard()[0]);
+      ok("it sounds once per hold start, plus the preview", heard().length === 46,
          heard().length);
 
       // 0s reset is a real variant: holds run back to back, no reset phase
