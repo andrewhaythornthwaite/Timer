@@ -188,6 +188,10 @@
   .tones{display:flex;gap:6px;padding:2px 0 14px}
   .tones .testbtn{flex:1;padding:12px 4px;font-size:14px;letter-spacing:.08em}
   .tones .testbtn[aria-pressed="true"]{background:var(--ink);color:var(--ground);border-color:var(--ink)}
+  /* Mode switch: same plate language as the tone row, sat above the presets. */
+  .modes{display:flex;gap:6px;padding:14px 0 2px}
+  .modes .testbtn{flex:1;padding:13px 4px;font-size:15px;letter-spacing:.1em}
+  .modes .testbtn[aria-pressed="true"]{background:var(--ink);color:var(--ground);border-color:var(--ink)}
   .previews{display:flex;gap:8px;margin-top:16px}
   .previews .testbtn{flex:1;padding:13px 4px;font-size:14px;letter-spacing:.1em}
   .previews .testbtn.playing{background:var(--ink);color:var(--ground)}
@@ -241,9 +245,14 @@
 <!-- ================= SETUP ================= -->
 <main id="setup">
   <header class="plate-head">
-    <h1>Circuit<br>Timer</h1>
-    <p>Work · Rest · Reps · Exercises</p>
+    <h1 id="mtitle">Circuit<br>Timer</h1>
+    <p id="msub">Work · Rest · Reps · Exercises</p>
   </header>
+
+  <div class="modes" id="modes">
+    <button class="testbtn" data-mode="circuit" type="button">Circuit</button>
+    <button class="testbtn" data-mode="hold" type="button">Holds</button>
+  </div>
 
   <div class="presets" id="presets"></div>
 
@@ -310,7 +319,7 @@
 
     <div class="row">
       <i class="swatch"></i>
-      <div class="lab"><b>Sound</b><span>Three ticks, then the change</span></div>
+      <div class="lab"><b>Sound</b><span id="snd-sub">Three ticks, then the change</span></div>
       <button class="toggle" id="f-snd" aria-pressed="true" aria-label="Sound on"></button>
     </div>
   </div>
@@ -382,6 +391,99 @@
   const setup=$("setup"), run=$("run");
   let sound = true;
 
+  /* ---------- modes ----------
+     Circuit and Hold are one engine with two vocabularies. build(), the
+     scheduler and the audio are identical; only the row labels, the stepper
+     ranges, the defaults and the run-screen copy differ. Everything that
+     differs lives in this table, so the two cannot drift apart — which is
+     exactly what a second forked file was doing. */
+  const KEYS = ["work","rest","reps","ex","brk","prep"];
+  const MODES = {
+    circuit: {
+      h1:"Circuit<br>Timer", sub:"Work · Rest · Reps · Exercises",
+      snd:"Three ticks, then the change",
+      rows:{
+        work:{b:"Work",      s:"Seconds on",              step:5,  min:5, max:600, aria:"Work seconds", cls:"is-work"},
+        rest:{b:"Rest",      s:"Seconds off",             step:5,  min:0, max:600, aria:"Rest seconds", cls:"is-rest"},
+        reps:{b:"Reps",      s:"Rounds of each exercise", step:1,  min:1, max:99,  aria:"Reps per exercise"},
+        ex:  {b:"Exercises", s:"Different movements",     step:1,  min:1, max:30,  aria:"Number of exercises"},
+        brk: {b:"Break",     s:"Between exercises",       step:10, min:0, max:900, aria:"Break between exercises", cls:"is-break"},
+        prep:{b:"Lead-in",   s:"Before the first rep",    step:5,  min:0, max:120, aria:"Lead-in seconds"}
+      },
+      previews:{"hear-start":"Start", "hear-stop":"Stop", "hear-switch":"Switch"},
+      def:{work:20, rest:40, reps:5, ex:3, brk:60, prep:10},
+      seed:{name:"20/40", cfg:{work:20,rest:40,reps:5,ex:3,brk:60,prep:10}, tone:"soft"},
+      label:{prep:"Get ready", work:"Work", rest:"Rest", break:"Break"},
+      where:(p,c)=>"Exercise "+p.ex+" / "+c.ex,
+      nextRep:(nx,c)=>" · rep "+nx.rep,
+      doneTag:"Session complete",
+      doneLine:c=>c.ex+" exercises · "+c.reps+" reps each",
+      chip:p=>p.cfg.work+"/"+p.cfg.rest+" · "+p.cfg.reps+"\u00d7"+p.cfg.ex,
+      sug:c=>c.work+"/"+c.rest,
+      recap:c=>c.reps+" \u00d7 ("+c.work+"s on / "+c.rest+"s off) per exercise · "+
+               c.ex+" exercise"+(c.ex>1?"s":"")+
+               (c.brk>0 && c.ex>1 ? " · "+c.brk+"s break between" : "")
+    },
+    hold: {
+      h1:"Hold<br>Timer", sub:"Hold · Reps · Sets",
+      snd:"Three ticks, then each hold",
+      rows:{
+        work:{b:"Hold",    s:"Seconds per hold",  step:1,  min:1, max:300, aria:"Hold seconds", cls:"is-work"},
+        rest:{b:"Reset",   s:"Between each hold", step:1,  min:0, max:60,  aria:"Reset seconds", cls:"is-rest"},
+        reps:{b:"Reps",    s:"Holds per set",     step:1,  min:1, max:99,  aria:"Holds per set"},
+        ex:  {b:"Sets",    s:"How many rounds",   step:1,  min:1, max:30,  aria:"Number of sets"},
+        brk: {b:"Rest",    s:"Between sets",      step:10, min:0, max:900, aria:"Rest between sets", cls:"is-rest"},
+        prep:{b:"Lead-in", s:"Before the first hold", step:5, min:0, max:120, aria:"Lead-in seconds"}
+      },
+      previews:{"hear-start":"Hold", "hear-stop":"Set end", "hear-switch":"Rest"},
+      def:{work:6, rest:1, reps:15, ex:3, brk:90, prep:10},
+      seed:{name:"Iso curls", cfg:{work:6,rest:1,reps:15,ex:3,brk:90,prep:10}, tone:"gong"},
+      label:{prep:"Get ready", work:"Hold", rest:"Rest", break:"Rest"},
+      where:(p,c)=>"Set "+p.ex+" / "+c.ex,
+      nextRep:(nx,c)=>" · hold "+nx.rep+" of "+c.reps,
+      doneTag:"Sets complete",
+      doneLine:c=>c.ex+" sets · "+c.reps+" holds each",
+      chip:p=>p.cfg.ex+"\u00d7"+p.cfg.reps+" · "+p.cfg.work+"s · "+p.cfg.brk+"s rest",
+      sug:c=>c.reps+"\u00d7"+c.work+"s",
+      /* Time under tension is the number that matters for isometrics. */
+      recap:c=>c.ex+" set"+(c.ex>1?"s":"")+" of "+c.reps+" \u00d7 "+c.work+"s holds"+
+               (c.rest>0 ? " ("+c.rest+"s reset)" : "")+
+               (c.brk>0 && c.ex>1 ? " · "+c.brk+"s rest between sets" : "")+
+               " · "+pretty(c.reps*c.work)+" under tension per set"
+    }
+  };
+  let modeName = "circuit";
+  const M = () => MODES[modeName];
+  const cfgs = {};
+  Object.keys(MODES).forEach(m => cfgs[m] = {...MODES[m].def});
+  const fill = c => KEYS.forEach(k=>{ if(typeof c[k] === "number") F[k].value = c[k]; });
+
+  /* Swap the vocabulary in place: labels, stepper ranges, swatches, previews.
+     Nothing here touches the schedule or the audio. */
+  function applyMode(name){
+    modeName = MODES[name] ? name : "circuit";
+    const m = M();
+    $("mtitle").innerHTML = m.h1;
+    $("msub").textContent = m.sub;
+    $("snd-sub").textContent = m.snd;
+    Object.keys(m.rows).forEach(k=>{
+      const r = m.rows[k], box = document.querySelector('.stepper[data-key="'+k+'"]');
+      if(!box) return;
+      const row = box.closest(".row"), lab = row.querySelector(".lab");
+      lab.querySelector("b").textContent = r.b;
+      lab.querySelector("span").textContent = r.s;
+      box.dataset.step = r.step; box.dataset.min = r.min; box.dataset.max = r.max;
+      box.querySelector("input").setAttribute("aria-label", r.aria);
+      row.classList.remove("is-work","is-rest","is-break");
+      if(r.cls) row.classList.add(r.cls);
+    });
+    Object.keys(m.previews).forEach(id=>{
+      const b = $(id); if(b) b.textContent = "\u23F5 " + m.previews[id];
+    });
+    document.querySelectorAll("#modes .testbtn").forEach(b=>
+      b.setAttribute("aria-pressed", String(b.dataset.mode === modeName)));
+  }
+
   /* ---------- settings ---------- */
   const clampField = (el, box) => {
     const min = +box.dataset.min, max = +box.dataset.max;
@@ -394,11 +496,11 @@
       b.addEventListener("click",()=>{
         const step = +box.dataset.step * +b.dataset.d;
         inp.value = (parseInt(inp.value,10)||0) + step;
-        clampField(inp, box); recap(); save(); renderPresets();
+        clampField(inp, box); recap(); save(); renderPresets(); refreshClips();
       });
     });
-    inp.addEventListener("change",()=>{clampField(inp,box);recap();save();renderPresets();});
-    inp.addEventListener("blur",()=>{clampField(inp,box);recap();save();});
+    inp.addEventListener("change",()=>{clampField(inp,box);recap();save();renderPresets();refreshClips();});
+    inp.addEventListener("blur",()=>{clampField(inp,box);recap();save();refreshClips();});
   });
   $("f-snd").addEventListener("click",e=>{
     sound = e.currentTarget.getAttribute("aria-pressed")!=="true";
@@ -431,15 +533,25 @@
   const K_SET = "circuit-timer:settings", K_PRE = "circuit-timer:presets";
 
   function save(){
-    store.set(K_SET, JSON.stringify({...cfg(), sound, tone: toneName}));
+    cfgs[modeName] = cfg();
+    store.set(K_SET, JSON.stringify({v:2, mode:modeName, sound, tone:toneName, cfg:cfgs}));
   }
   function load(){
     const raw = store.get(K_SET); if(!raw) return;
     try{
       const s = JSON.parse(raw);
-      ["work","rest","reps","ex","brk","prep"].forEach(k=>{
-        if(typeof s[k]==="number") F[k].value = s[k];
-      });
+      if(s.cfg && typeof s.cfg === "object"){
+        Object.keys(MODES).forEach(m=>{
+          if(s.cfg[m]) KEYS.forEach(k=>{
+            if(typeof s.cfg[m][k] === "number") cfgs[m][k] = s.cfg[m][k];
+          });
+        });
+      } else {
+        /* Settings saved before Hold mode existed were a flat circuit config.
+           Read them as circuit settings rather than losing them. */
+        KEYS.forEach(k=>{ if(typeof s[k] === "number") cfgs.circuit[k] = s[k]; });
+      }
+      if(MODES[s.mode]) modeName = s.mode;
       if(typeof s.tone==="string" && TONES[s.tone]){
         loadTone(s.tone); markTones();
       }
@@ -447,14 +559,20 @@
         sound = s.sound;
         $("f-snd").setAttribute("aria-pressed",String(sound));
       }
-      recap();
     }catch(e){}
   }
 
   /* ---------- presets ---------- */
   let presets = [];
+  /* Presets are tagged with the mode they belong to. Andrew has presets saved
+     from before Hold mode existed — untagged ones are circuit presets. */
   function readPresets(){
-    try{ const a = JSON.parse(store.get(K_PRE) || "[]"); return Array.isArray(a) ? a : []; }
+    try{
+      const a = JSON.parse(store.get(K_PRE) || "[]");
+      if(!Array.isArray(a)) return [];
+      return a.filter(p => p && typeof p === "object" && p.cfg)
+              .map(p => ({...p, mode: MODES[p.mode] ? p.mode : "circuit"}));
+    }
     catch(e){ return []; }
   }
   function writePresets(){ store.set(K_PRE, JSON.stringify(presets)); }
@@ -464,7 +582,7 @@
       if(typeof p.cfg[k] === "number") F[k].value = p.cfg[k];
     });
     if(p.tone && TONES[p.tone]){ loadTone(p.tone); markTones(); }
-    recap(); save(); renderPresets();
+    recap(); save(); renderPresets(); refreshClips();
   }
 
   function currentMatches(p){
@@ -476,6 +594,7 @@
     const box = $("presets"); if(!box) return;
     box.innerHTML = "";
     presets.forEach((p, i)=>{
+      if(p.mode !== modeName) return;            // the other mode's presets
       const chip = document.createElement("div");
       chip.className = "chip" + (currentMatches(p) ? " on" : "");
       const load = document.createElement("button");
@@ -483,8 +602,7 @@
       load.className = "chip-load";
       load.innerHTML = "<b></b><span></span>";
       load.querySelector("b").textContent = p.name;
-      load.querySelector("span").textContent =
-        p.cfg.work + "/" + p.cfg.rest + " \u00b7 " + p.cfg.reps + "\u00d7" + p.cfg.ex;
+      load.querySelector("span").textContent = M().chip(p);
       load.addEventListener("click", ()=>applyPreset(p));
       const del = document.createElement("button");
       del.type = "button"; del.className = "chip-x"; del.textContent = "\u00d7";
@@ -505,15 +623,18 @@
 
   function savePreset(){
     const c = cfg();
-    const suggested = c.work + "/" + c.rest;
+    const suggested = M().sug(c);
     let name = null;
     try{ name = window.prompt("Name this preset", suggested); }catch(e){ name = suggested; }
     if(name === null) return;                       // cancelled
     name = (name || suggested).trim().slice(0, 24) || suggested;
-    const existing = presets.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
-    const entry = {name: name, cfg: c, tone: toneName};
+    const entry = {name: name, cfg: c, tone: toneName, mode: modeName};
+    const existing = presets.findIndex(p =>
+      p.mode === modeName && p.name.toLowerCase() === name.toLowerCase());
     if(existing >= 0) presets[existing] = entry; else presets.push(entry);
-    if(presets.length > 12) presets = presets.slice(-12);
+    /* Cap per mode, so a full circuit list cannot evict the hold presets. */
+    const mine = presets.filter(p => p.mode === modeName);
+    if(mine.length > 12) presets.splice(presets.indexOf(mine[0]), 1);
     writePresets(); renderPresets();
   }
 
@@ -551,9 +672,7 @@
   function recap(){
     const c = cfg(), seq = build();
     $("total").textContent = pretty(seq.reduce((a,p)=>a+p.d,0));
-    $("seq").textContent =
-      c.reps+" × ("+c.work+"s on / "+c.rest+"s off) per exercise · "+c.ex+" exercise"+(c.ex>1?"s":"")+
-      (c.brk>0 && c.ex>1 ? " · "+c.brk+"s break between" : "");
+    $("seq").textContent = M().recap(c);
   }
 
   /* ---------- audio: real WAV clips, rendered in-page ---------- */
@@ -636,6 +755,10 @@
             {f:196, d:1.40, v:0.88}]
   };
   let toneName = "gong";
+  /* A tone that plays at the start of a short phase gets shortened to fit it,
+     so a 1s reset does not get a 3s tone ringing over the next hold. Applies
+     to circuit mode too — a 2s rest hits the same collision. */
+  let clipLimits = {};
   function clipsFor(name){
     const t = TONES[name] || TONES.soft, out = {};
     Object.keys(BASE).forEach(k=>{
@@ -645,6 +768,9 @@
         let d = s.d * (t.dmul || 1);
         if(k === "tick") d = Math.min(d, 0.92);   // must clear the next second
         else d = Math.min(d, 5.0);                // and never run into a short break
+        const lim = clipLimits[k];
+        // 0.85 leaves a little air before the next tone; 0.32 stops a click
+        if(lim !== undefined) d = Math.min(d, Math.max(0.32, lim * 0.85));
         return {
           f: f, d: d, gap: s.gap, a: t.a, dk: s.dkOverride || t.dk,
           h: Math.min(0.55, (t.h || 0) + (low ? 0.22 : 0)),
@@ -674,6 +800,22 @@
     });
     POOL[k].idx = 0;
   });
+  /* Re-renders only when a limit actually moved — rendering clips is not free. */
+  let lastLimits = "";
+  function refreshClips(){
+    const c = cfg();
+    const key = c.work + "/" + c.rest + "/" + c.brk;
+    if(key === lastLimits) return;
+    lastLimits = key;
+    /* Only phases that actually exist constrain anything: a 0s reset means
+       there is no reset phase, so the release tone never plays and must not
+       be shortened for one. */
+    clipLimits = {};
+    if(c.work > 0) clipLimits.work = c.work;
+    if(c.rest > 0) clipLimits.rest = c.rest;
+    if(c.brk  > 0) clipLimits.brk  = c.brk;
+    loadTone(toneName);
+  }
   function loadTone(name){
     toneName = TONES[name] ? name : "soft";
     CLIPS = clipsFor(toneName);
@@ -890,17 +1032,15 @@
 
   /* ---------- runtime ---------- */
   const S = {seq:[],i:0,left:0,endAt:0,on:false,paused:false,lastTick:-1,startedAt:0,pauseAt:0,pausedTotal:0};
-  const LABEL = {prep:"Get ready",work:"Work",rest:"Rest",break:"Break"};
-
   function paint(){
     const p = S.seq[S.i], c = cfg();
     run.className = "on p-"+p.t + (S.paused?" paused":"");
-    $("phase").textContent = LABEL[p.t];
-    $("where").textContent = p.t==="prep" ? "Starting" : "Exercise "+p.ex+" / "+c.ex;
+    $("phase").textContent = M().label[p.t];
+    $("where").textContent = p.t==="prep" ? "Starting" : M().where(p,c);
 
     const nx = S.seq[S.i+1];
     $("next").textContent = nx
-      ? "Next — "+LABEL[nx.t].toLowerCase()+" "+nx.d+"s"+(nx.t==="work"? " · rep "+nx.rep : "")
+      ? "Next — "+M().label[nx.t].toLowerCase()+" "+nx.d+"s"+(nx.t==="work" ? M().nextRep(nx,c) : "")
       : "Last one — finish strong";
 
     const pips = $("pips"); pips.innerHTML = "";
@@ -948,8 +1088,8 @@
     run.className = "on";
     $("phase").textContent = "Done";
     $("clock").textContent = "✓";
-    $("where").textContent = "Session complete";
-    $("next").textContent = cfg().ex+" exercises · "+cfg().reps+" reps each";
+    $("where").textContent = M().doneTag;
+    $("next").textContent = M().doneLine(cfg());
     $("drain").style.height = "0%";
     $("pips").innerHTML = "";
     $("pause").textContent = "Again";
@@ -1065,16 +1205,30 @@
       document.body.classList.add("standalone");
     }
   }catch(e){}
+  document.querySelectorAll("#modes .testbtn").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const to = b.dataset.mode;
+      if(!MODES[to] || to === modeName) return;
+      cfgs[modeName] = cfg();          // remember where he left the mode he is leaving
+      applyMode(to);
+      fill(cfgs[modeName]);
+      refreshClips(); recap(); renderPresets(); save();
+    });
+  });
+
   try{ report(); }catch(e){}
   try{ load(); }catch(e){}
+  applyMode(modeName);
+  fill(cfgs[modeName]);
   markTones();
   presets = readPresets();
-  if(!presets.length){
-    presets = [{name:"20/40", cfg:{work:20,rest:40,reps:5,ex:3,brk:60,prep:10}, tone:"soft"}];
-    writePresets();
-  }
+  Object.keys(MODES).forEach(m=>{
+    if(!presets.some(p => p.mode === m)) presets.push({...MODES[m].seed, mode:m});
+  });
+  writePresets();
   renderPresets();
   recap();
+  refreshClips();
 })();
 </script>
 </body>

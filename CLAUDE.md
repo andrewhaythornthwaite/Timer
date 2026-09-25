@@ -1,9 +1,10 @@
 # Circuit Timer
 
-A single-file interval timer web app for HIIT circuits, used by Andrew on an
-iPhone as a home-screen web app. Everything lives in `interval-timer.html` —
-markup, styles, script, fonts, audio, icon. No build step, no dependencies,
-no external requests.
+A single-file interval timer web app, used by Andrew on an iPhone as a
+home-screen web app. It runs two kinds of session — **Circuit** (work / rest /
+reps / exercises) and **Hold** (isometric holds: hold / reset / reps / sets).
+Everything lives in `interval-timer.html` — markup, styles, script, fonts,
+audio, icon. No build step, no dependencies, no external requests.
 
 - **Repo:** `andrewhaythornthwaite/Timer` (public)
 - **Live:** `https://andrewhaythornthwaite.github.io/Timer/interval-timer.html`
@@ -29,6 +30,48 @@ test/                 headless tests (npm test)
 native/               ContentView.swift — SwiftUI version, not deployed
 .claude/              project settings + the unpushed-changes hook
 ```
+
+## Two modes, one engine
+
+Hold mode was originally a forked second file (`hold-timer.html`). It was merged
+back in on 25 Sep 2026 because two copies of the same engine drift — any audio,
+scheduler or wake-lock fix had to be applied twice. **Do not fork it again.** If
+a third session type is wanted, add a row to `MODES`.
+
+`build()`, the scheduler, the audio and the wake lock are shared and know
+nothing about modes. Everything that differs between them sits in the `MODES`
+table near the top of the script:
+
+| Internal | Circuit | Hold | Hold default |
+|---|---|---|---|
+| `work` | Work, seconds on | **Hold**, seconds per hold | 6 |
+| `rest` | Rest, seconds off | **Reset**, between holds | 1 |
+| `reps` | Reps per exercise | **Reps**, holds per set | 15 |
+| `ex`   | Exercises | **Sets** | 3 |
+| `brk`  | Break between exercises | **Rest** between sets | 90 |
+| `prep` | Lead-in | Lead-in | 10 |
+
+Each mode entry holds its labels, stepper ranges, defaults, seed preset,
+run-screen copy and summary line. `applyMode()` writes them into the existing
+markup — the rows are never rebuilt. Hold defaults total **8m 22s**: 45 holds,
+42 resets (none after a set's last hold), 2 set rests, ending on a hold.
+
+In Hold mode the reset steps by 1 over 0–60, and the hold itself by 1 rather
+than 5 — a 5-second step is useless for a 6-second hold. **A reset of 0 is a
+legitimate variant**, not an edge case: holds then run back to back and no rest
+phase is built at all.
+
+### Storage
+
+One settings key, `circuit-timer:settings`, now shaped
+`{v:2, mode, sound, tone, cfg:{circuit:{…}, hold:{…}}}` — each mode remembers
+its own numbers, and the mode itself persists across launches. Settings written
+before Hold mode existed were a flat circuit config; `load()` still reads that
+shape. Presets share one key, each tagged `mode`; untagged ones are read as
+circuit presets, and the cap of 12 is per mode so a full circuit list cannot
+evict the hold ones. **Andrew has presets saved on his phone — never restructure
+this without a migration path.** `test/presets.js` boots a second DOM with
+old-shape data to prove it still loads.
 
 ## Why it is one file with nothing external
 
@@ -66,6 +109,18 @@ that phase immediately books its own countdown. Cancelling everything killed
 the landing tone milliseconds after it started, so the countdown ran three
 ticks and the fourth beep was chopped off. It now compares each booked node's
 start time against `currentTime` and leaves anything already sounding alone.
+
+### A tone must fit the phase it plays in
+
+A clip is booked to sound at the **start** of a phase, so its length has to fit
+inside that phase. With a 1-second reset, the 3-second gong release tone rang
+straight over the next hold's start tone and the two became mush. `clipLimits`
+caps each clip to the duration of the phase it plays in — `lim * 0.85`, leaving
+a little air, with a 0.32s floor so a tone cannot collapse into a click.
+`refreshClips()` recomputes it when a gap changes, and only then, since
+rendering clips is not free. This is not hold-specific: a 2-second rest in
+circuit mode hits the same collision. `test/tones.js` asserts the release tone
+comes out under 1s with a 1s reset.
 
 ### iOS ignores `volume` on audio elements
 
@@ -161,6 +216,9 @@ spaced beats. Landing tone is pitched by what is *starting*:
 | New exercise | `brk` | one long low tone |
 | Session ends | `done` | descending |
 
+In Hold mode the same clips read as squeeze / release / set rest — `work` on
+each hold, `rest` on each release, `brk` at the start of a set rest.
+
 ## Visual design
 
 Two distinct states, deliberately:
@@ -180,10 +238,13 @@ panel language is intentional, not decoration.
 There is no browser here, so run it headless. `test/` holds:
 
 - `test/app.js` — boots the page in jsdom, drives start / pause / resume /
-  skip / end / previews / tone switches, asserts no runtime errors
-- `test/presets.js` — save, load, highlight, delete, persistence
-- `test/tones.js` — renders every clip in every tone, checks peak level and
-  that each ends at silence
+  skip / end / previews / tone switches in both modes, asserts no runtime
+  errors. It also walks a whole hold session with skip and tallies the phases,
+  which pins the schedule exactly: 45 holds, 42 resets, 2 set rests, 8m 22s
+- `test/presets.js` — save, load, highlight, delete, persistence, per-mode
+  separation, and migration of pre-Hold data in a second DOM
+- `test/tones.js` — renders every clip in every tone, checks peak level, that
+  each ends at silence, and that a clip shortens to fit a 1s reset
 
 ```bash
 npm install           # once — jsdom, from package.json
@@ -225,3 +286,6 @@ switcher before reopening or iOS serves the cached version.
   partial decay rates, feed them into the `gong` partial table.
 - Possible: expose tone pitches/durations as in-app controls so sound tweaks
   don't need a deploy at all.
+- The run screen shows a set rest and a between-hold reset in the same colour
+  (`rest`), since both are rests. If they need telling apart across a room,
+  give the set rest its own phase colour.
