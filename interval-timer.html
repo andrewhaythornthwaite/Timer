@@ -420,7 +420,7 @@
       where:(p,c)=>"Exercise "+p.ex+" / "+c.ex,
       nextRep:(nx,c)=>" · rep "+nx.rep,
       doneTag:"Session complete",
-      doneLine:c=>c.ex+" exercises · "+c.reps+" reps each",
+      doneLine:c=>plural(c.ex,"exercise")+" · "+plural(c.reps,"rep")+" each",
       rise:null,                                  // every phase drains downward
       chip:p=>p.cfg.work+"/"+p.cfg.rest+" · "+p.cfg.reps+"\u00d7"+p.cfg.ex,
       sug:c=>c.work+"/"+c.rest,
@@ -456,7 +456,7 @@
       where:(p,c)=>"Set "+p.ex+" / "+c.ex,
       nextRep:(nx,c)=>" · rep "+nx.rep+" of "+c.reps,
       doneTag:"Sets complete",
-      doneLine:c=>c.ex+" sets · "+c.reps+" reps each",
+      doneLine:c=>plural(c.ex,"set")+" · "+plural(c.reps,"rep")+" each",
       /* The up is a movement, not a wait: the bar climbs with it. */
       rise:p => p.t === "rest",
       chip:p=>p.cfg.ex+"\u00d7"+p.cfg.reps+" · "+p.cfg.work+"s · "+p.cfg.brk+"s rest",
@@ -470,6 +470,7 @@
   };
   let modeName = "circuit";
   const M = () => MODES[modeName];
+  const plural = (n, word) => n + " " + word + (n === 1 ? "" : "s");
   const cfgs = {};
   Object.keys(MODES).forEach(m => cfgs[m] = {...MODES[m].def});
   const fill = c => KEYS.forEach(k=>{ if(typeof c[k] === "number") F[k].value = c[k]; });
@@ -490,6 +491,9 @@
       lab.querySelector("span").textContent = r.s;
       box.dataset.step = r.step; box.dataset.min = r.min; box.dataset.max = r.max;
       box.querySelector("input").setAttribute("aria-label", r.aria);
+      const btns = box.querySelectorAll("button");   // "Less work time" in hold mode was wrong
+      if(btns[0]) btns[0].setAttribute("aria-label", "Less " + r.b.toLowerCase());
+      if(btns[1]) btns[1].setAttribute("aria-label", "More " + r.b.toLowerCase());
       row.classList.remove("is-work","is-rest","is-break");
       if(r.cls) row.classList.add(r.cls);
     });

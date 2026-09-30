@@ -76,6 +76,9 @@ setTimeout(() => {
        rowLabel("ex")==="Sets" && rowLabel("brk")==="Rest",
        [rowLabel("work"),rowLabel("rest"),rowLabel("ex"),rowLabel("brk")].join(","));
     ok("hold defaults 6/1/15/3/90/10", fields() === "6/1/15/3/90/10", fields());
+    ok("stepper buttons renamed with the row",
+       d.querySelector('.stepper[data-key="work"] button').getAttribute("aria-label") === "Less down",
+       d.querySelector('.stepper[data-key="work"] button').getAttribute("aria-label"));
     ok("the up steps by 1, max 60",
        d.querySelector('.stepper[data-key="rest"]').dataset.step === "1" &&
        d.querySelector('.stepper[data-key="rest"]').dataset.max === "60");
@@ -139,12 +142,23 @@ setTimeout(() => {
       click("end");
       setField("f-rest", 1);
 
+      // one set of one rep: the finish line still has to read as English
+      setField("f-ex", 1); setField("f-reps", 1);
+      click("start");
+      let g2 = 0; while(phaseType() && g2++ < 20) click("skip");
+      ok("finish line pluralises", txt("next") === "1 set \u00b7 1 rep each", txt("next"));
+      click("end");
+      setField("f-ex", 3); setField("f-reps", 15);
+
       console.log("back to circuit");
       clickEl(modeBtn("circuit"));
       ok("circuit labels restored", rowLabel("work")==="Work" && rowLabel("brk")==="Break",
          rowLabel("work")+","+rowLabel("brk"));
       ok("circuit numbers restored", fields() === "20/40/5/3/60/10", fields());
       ok("all three previews back", visiblePreviews().length === 3);
+      ok("stepper buttons renamed back",
+         d.querySelector('.stepper[data-key="work"] button').getAttribute("aria-label") === "Less work",
+         d.querySelector('.stepper[data-key="work"] button').getAttribute("aria-label"));
       ok("mode persisted to storage",
          (dom.window.localStorage.getItem("circuit-timer:settings")||"").includes('"mode":"circuit"'));
 
