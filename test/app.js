@@ -72,21 +72,21 @@ setTimeout(() => {
 
     console.log("hold mode");
     clickEl(modeBtn("hold"));
-    ok("row labels swap", rowLabel("work")==="Hold" && rowLabel("rest")==="Reset" &&
+    ok("row labels swap", rowLabel("work")==="Down" && rowLabel("rest")==="Up" &&
        rowLabel("ex")==="Sets" && rowLabel("brk")==="Rest",
        [rowLabel("work"),rowLabel("rest"),rowLabel("ex"),rowLabel("brk")].join(","));
     ok("hold defaults 6/1/15/3/90/10", fields() === "6/1/15/3/90/10", fields());
-    ok("reset steps by 1, max 60",
+    ok("the up steps by 1, max 60",
        d.querySelector('.stepper[data-key="rest"]').dataset.step === "1" &&
        d.querySelector('.stepper[data-key="rest"]').dataset.max === "60");
     ok("total is 8m 22s", txt("total") === "8m 22s", txt("total"));
     ok("summary shows time under tension", /under tension/.test(txt("seq")), txt("seq"));
-    ok("one preview button, the hold tone",
-       visiblePreviews().map(b => b.textContent).join("|") === "⏵ Hold tone",
+    ok("one preview button, the down tone",
+       visiblePreviews().map(b => b.textContent).join("|") === "⏵ Down tone",
        [...d.querySelectorAll(".previews .testbtn")]
          .map(b => (b.style.display === "none" ? "[hidden]" : b.textContent)).join("|"));
     ok("sound row explains the single tone",
-       txt("snd-sub") === "One tone as each hold starts", txt("snd-sub"));
+       txt("snd-sub") === "One tone as each rep starts", txt("snd-sub"));
 
     // What actually sounds. The preview plays the hold tone; the session that
     // follows must play that same clip, once per hold start, and nothing else.
@@ -99,13 +99,13 @@ setTimeout(() => {
       tally[phaseType()]++;
       click("skip");
     }
-    ok("45 holds", tally.work === 45, tally.work);
-    ok("42 resets", tally.rest === 42, tally.rest);
+    ok("45 downs", tally.work === 45, tally.work);
+    ok("42 ups", tally.rest === 42, tally.rest);
     ok("2 rests between sets", tally.break === 2, tally.break);
     ok("one lead-in", tally.prep === 1, tally.prep);
     ok("session ends after a hold", txt("phase") === "Done", txt("phase"));
     ok("hold wording on finish", txt("where") === "Sets complete" &&
-       txt("next") === "3 sets · 15 holds each", txt("where") + " / " + txt("next"));
+       txt("next") === "3 sets · 15 reps each", txt("where") + " / " + txt("next"));
     click("end");
 
     setTimeout(() => {                      // let deferred play() promises settle
@@ -116,14 +116,26 @@ setTimeout(() => {
       ok("it sounds once per hold start, plus the preview", heard().length === 46,
          heard().length);
 
+      // The bar: a down drains from full, an up climbs from nothing, eased
+      const barAt = () => d.getElementById("drain").style.height;
+      click("start");
+      while(phaseType() === "prep") click("skip");
+      ok("a down starts from a full bar", barAt() === "100%", barAt());
+      ok("phase reads Down", txt("phase") === "Down", txt("phase"));
+      click("skip");
+      ok("an up starts from an empty bar and climbs",
+         phaseType() === "rest" && barAt() === "0%", phaseType() + " / " + barAt());
+      ok("phase reads Up", txt("phase") === "Up", txt("phase"));
+      click("end");
+
       // 0s reset is a real variant: holds run back to back, no reset phase
       setField("f-rest", 0);
-      ok("reset 0 drops the resets", txt("total") === "7m 40s", txt("total"));
-      ok("summary omits the reset", !/reset/.test(txt("seq")), txt("seq"));
+      ok("up of 0 drops the up phases", txt("total") === "7m 40s", txt("total"));
+      ok("summary omits the up", !/s up/.test(txt("seq")), txt("seq"));
       click("start");
       const back = [];
       for(let i=0;i<4 && phaseType();i++){ back.push(phaseType()); click("skip"); }
-      ok("holds run back to back", back.join(",") === "prep,work,work,work", back.join(","));
+      ok("downs run back to back", back.join(",") === "prep,work,work,work", back.join(","));
       click("end");
       setField("f-rest", 1);
 
@@ -141,6 +153,9 @@ setTimeout(() => {
       click("skip"); click("skip");
       ok("circuit still sounds a tone per change", [...new Set(heard())].length >= 2,
          [...new Set(heard())].length + " distinct clips");
+      ok("circuit rests still drain from full",
+         phaseType() === "rest" && d.getElementById("drain").style.height === "100%",
+         phaseType() + " / " + d.getElementById("drain").style.height);
       click("end");
 
       console.log("sound controls");

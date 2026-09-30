@@ -52,12 +52,17 @@ table near the top of the script:
 
 | Internal | Circuit | Hold | Hold default |
 |---|---|---|---|
-| `work` | Work, seconds on | **Hold**, seconds per hold | 6 |
-| `rest` | Rest, seconds off | **Reset**, between holds | 1 |
-| `reps` | Reps per exercise | **Reps**, holds per set | 15 |
+| `work` | Work, seconds on | **Down**, the slow lower | 6 |
+| `rest` | Rest, seconds off | **Up**, back to the top | 1 |
+| `reps` | Reps per exercise | **Reps** per set | 15 |
 | `ex`   | Exercises | **Sets** | 3 |
-| `brk`  | Break between exercises | **Rest** between sets | 90 |
+| `brk`  | **Rest** between sets | **Rest** between sets | 90 |
 | `prep` | Lead-in | Lead-in | 10 |
+
+The mode is named Hold and the movement is a curl: `work` is the **down**, the
+slow controlled lower, and `rest` is the **up**, pulling back to the top. The up
+is a movement, not a wait — which is why it is not called a rest anywhere the
+user can see, and why the bar treats it differently (below).
 
 Each mode entry holds its labels, stepper ranges, defaults, seed preset,
 run-screen copy and summary line. `applyMode()` writes them into the existing
@@ -68,6 +73,24 @@ In Hold mode the reset steps by 1 over 0–60, and the hold itself by 1 rather
 than 5 — a 5-second step is useless for a 6-second hold. **A reset of 0 is a
 legitimate variant**, not an edge case: holds then run back to back and no rest
 phase is built at all.
+
+### The bar climbs on the up
+
+`#drain` is a translucent overlay anchored to the bottom, so its height *is* the
+progress bar. Draining means shrinking it: the edge travels down as the phase
+runs out. That is every phase in circuit mode, and the down and the set rest in
+hold mode.
+
+The **up** phase does the opposite — it climbs from nothing — and it eases in,
+`(elapsed/duration)²`, so it starts slowly and gathers pace instead of snapping
+to a constant rate. It mirrors the movement: you are pulling back up out of a
+slow lower, and the bar leads you into it. `barPct()` is the one place this is
+decided, and `MODES[…].rise` says which phases climb (`null` in circuit mode).
+`RISE_EASE` tunes it — raise it for a lazier start, 1 for a straight climb.
+
+`test/app.js` asserts a down starts at a full bar and an up starts at an empty
+one; the curve between is a judgement call, so it was checked in a real browser
+rather than asserted.
 
 ### Storage
 

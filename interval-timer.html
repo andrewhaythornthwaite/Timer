@@ -421,6 +421,7 @@
       nextRep:(nx,c)=>" · rep "+nx.rep,
       doneTag:"Session complete",
       doneLine:c=>c.ex+" exercises · "+c.reps+" reps each",
+      rise:null,                                  // every phase drains downward
       chip:p=>p.cfg.work+"/"+p.cfg.rest+" · "+p.cfg.reps+"\u00d7"+p.cfg.ex,
       sug:c=>c.work+"/"+c.rest,
       recap:c=>c.reps+" \u00d7 ("+c.work+"s on / "+c.rest+"s off) per exercise · "+
@@ -429,16 +430,16 @@
     },
     hold: {
       h1:"Hold<br>Timer", sub:"Hold · Reps · Sets",
-      snd:"One tone as each hold starts",
+      snd:"One tone as each rep starts",
       rows:{
-        work:{b:"Hold",    s:"Seconds per hold",  step:1,  min:1, max:300, aria:"Hold seconds", cls:"is-work"},
-        rest:{b:"Reset",   s:"Between each hold", step:1,  min:0, max:60,  aria:"Reset seconds", cls:"is-rest"},
-        reps:{b:"Reps",    s:"Holds per set",     step:1,  min:1, max:99,  aria:"Holds per set"},
+        work:{b:"Down",    s:"Seconds lowering",  step:1,  min:1, max:300, aria:"Seconds lowering", cls:"is-work"},
+        rest:{b:"Up",      s:"Seconds coming back up", step:1, min:0, max:60, aria:"Seconds coming back up", cls:"is-rest"},
+        reps:{b:"Reps",    s:"Reps per set",      step:1,  min:1, max:99,  aria:"Reps per set"},
         ex:  {b:"Sets",    s:"How many rounds",   step:1,  min:1, max:30,  aria:"Number of sets"},
         brk: {b:"Rest",    s:"Between sets",      step:10, min:0, max:900, aria:"Rest between sets", cls:"is-rest"},
-        prep:{b:"Lead-in", s:"Before the first hold", step:5, min:0, max:120, aria:"Lead-in seconds"}
+        prep:{b:"Lead-in", s:"Before the first rep", step:5, min:0, max:120, aria:"Lead-in seconds"}
       },
-      previews:{"hear-start":"Hold tone", "hear-stop":null, "hear-switch":null},
+      previews:{"hear-start":"Down tone", "hear-stop":null, "hear-switch":null},
       /* One sound and only one: a tone as each hold begins. Holds are short and
          come thick and fast — a 3-2-1 countdown into each one, plus a tone at
          both ends, was unreadable. Silence carries the rest of it.
@@ -451,16 +452,18 @@
            finish:false},
       def:{work:6, rest:1, reps:15, ex:3, brk:90, prep:10},
       seed:{name:"Iso curls", cfg:{work:6,rest:1,reps:15,ex:3,brk:90,prep:10}, tone:"gong"},
-      label:{prep:"Get ready", work:"Hold", rest:"Rest", break:"Rest"},
+      label:{prep:"Get ready", work:"Down", rest:"Up", break:"Rest"},
       where:(p,c)=>"Set "+p.ex+" / "+c.ex,
-      nextRep:(nx,c)=>" · hold "+nx.rep+" of "+c.reps,
+      nextRep:(nx,c)=>" · rep "+nx.rep+" of "+c.reps,
       doneTag:"Sets complete",
-      doneLine:c=>c.ex+" sets · "+c.reps+" holds each",
+      doneLine:c=>c.ex+" sets · "+c.reps+" reps each",
+      /* The up is a movement, not a wait: the bar climbs with it. */
+      rise:p => p.t === "rest",
       chip:p=>p.cfg.ex+"\u00d7"+p.cfg.reps+" · "+p.cfg.work+"s · "+p.cfg.brk+"s rest",
       sug:c=>c.reps+"\u00d7"+c.work+"s",
       /* Time under tension is the number that matters for isometrics. */
-      recap:c=>c.ex+" set"+(c.ex>1?"s":"")+" of "+c.reps+" \u00d7 "+c.work+"s holds"+
-               (c.rest>0 ? " ("+c.rest+"s reset)" : "")+
+      recap:c=>c.ex+" set"+(c.ex>1?"s":"")+" of "+c.reps+" \u00d7 "+c.work+"s down"+
+               (c.rest>0 ? " ("+c.rest+"s up)" : "")+
                (c.brk>0 && c.ex>1 ? " · "+c.brk+"s rest between sets" : "")+
                " · "+pretty(c.reps*c.work)+" under tension per set"
     }
@@ -1117,11 +1120,24 @@
     tickDraw();
   }
 
+  /* #drain is anchored to the bottom, so its height is the bar. Draining means
+     shrinking it — the edge travels down as the phase runs out. A phase the
+     mode marks as rising does the opposite: it climbs from nothing, and eases
+     in, so it starts slowly rather than snapping to a constant rate. That
+     matches pulling back up out of a slow lower. Raise RISE_EASE for a lazier
+     start, 1 for a straight climb. */
+  const RISE_EASE = 2;
+  function barPct(p, remain){
+    const left = Math.max(0, Math.min(1, remain / p.d));
+    const rise = M().rise;
+    return rise && rise(p) ? 100 * Math.pow(1 - left, RISE_EASE) : 100 * left;
+  }
+
   function tickDraw(){
     const p = S.seq[S.i];
     const remain = Math.max(0, S.left);
     $("clock").textContent = remain>=60 ? mmss(remain) : String(Math.ceil(remain));
-    $("drain").style.height = (100*remain/p.d)+"%";
+    $("drain").style.height = barPct(p, remain)+"%";
     const el = (performance.now()-S.startedAt-S.pausedTotal)/1000;
     $("elapsed").textContent = mmss(el);
   }
